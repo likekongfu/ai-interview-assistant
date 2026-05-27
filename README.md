@@ -16,13 +16,13 @@
 ## 📸 功能截图
 
 ### 首页 & 面试模拟
-![输入图片说明](image.png)
+![输入图片说明](image/homepage.png)
 
 ### 历史面试记录
-![输入图片说明](image2.png)
+![输入图片说明](image/history.png)
 
 ### 智能评分详情
-![输入图片说明](image3image.png)
+![输入图片说明](image/details.png)
 
 ---
 
@@ -30,10 +30,10 @@
 
 | 模块       | 技术选型                  |
 |------------|---------------------------|
-| 前端       | Next.js + Tailwind CSS    |
+| 前端       | Next.js    |
 | 后端       | FastAPI + Python          |
 | AI 能力    | 大语言模型接口            |
-| 数据库     | SQLite / PostgreSQL       |
+| 数据库     | MySQL / Redis       |
 | 鉴权       | JWT 令牌认证              |
 
 ---
