@@ -16,13 +16,13 @@
 ## 📸 功能截图
 
 ### 首页 & 面试模拟
-![首页面试模拟](./docs/images/homepage.png)
+![输入图片说明](image.png)
 
 ### 历史面试记录
-![历史记录](./docs/images/history.png)
+![输入图片说明](image2.png)
 
 ### 智能评分详情
-![评分详情](./docs/images/score.png)
+![输入图片说明](image3image.png)
 
 ---
 
