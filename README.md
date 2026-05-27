@@ -1,39 +1,56 @@
-# myai_project
-
-#### 介绍
-{**以下是 Gitee 平台说明，您可以替换此简介**
-Gitee 是 OSCHINA 推出的基于 Git 的代码托管平台（同时支持 SVN）。专为开发者提供稳定、高效、安全的云端软件开发协作平台
-无论是个人、团队、或是企业，都能够用 Gitee 实现代码托管、项目管理、协作开发。企业项目请看 [https://gitee.com/enterprises](https://gitee.com/enterprises)}
-
-#### 软件架构
-软件架构说明
-
-
-#### 安装教程
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### 使用说明
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### 参与贡献
-
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+AI 面试助手 🚀
+一个基于大语言模型的面试模拟与评估工具，帮助开发者高效准备面试、生成岗位定制化题目并获得 AI 智能评分反馈。
+✨ 项目亮点
+🎯 AI 生成题目：基于岗位 JD 智能生成真实面试问题，告别盲目刷题
+🤖 AI 智能评分：多维度分析回答质量，提供技术水平与逻辑表达反馈
+📝 历史记录：自动保存所有面试过程与评分结果，方便复盘提升
+🔐 多用户系统：JWT 鉴权与用户数据完全隔离，保障隐私安全
+📸 功能截图
+首页 & 面试模拟
+历史记录
+智能评分详情
+🛠️ 技术栈
+前端：Next.js + Tailwind CSS
+后端：FastAPI + Python
+AI 能力：大语言模型接口
+数据库：（可根据实际情况补充，如 SQLite / PostgreSQL）
+鉴权：JWT 令牌认证
+🚀 快速开始
+1. 克隆项目
+bash
+运行
+git clone <你的仓库地址>
+cd ai-interview-assistant
+2. 前端启动
+bash
+运行
+cd frontend
+npm install
+npm run dev
+3. 后端启动
+bash
+运行
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload
+📖 核心功能说明
+1. 题目生成
+输入目标岗位的 JD 或关键词，AI 会自动生成符合岗位要求的面试题目，覆盖技术基础、工程实践、场景分析等多个维度。
+2. 面试与评分
+用户在页面输入回答后，AI 会从以下维度进行多维度评估：
+技术能力：知识点掌握的准确性与完整性
+逻辑表达：回答的条理性与结构化程度
+工程经验：是否结合实际场景展开说明
+沟通表达：语言的清晰度与专业度
+3. 历史记录
+所有面试记录与评分结果会自动保存，支持查看详情、复盘回答，追踪自己的面试准备进度。
+4. 多用户系统
+基于 JWT 的身份认证
+不同用户数据完全隔离
+支持登录、退出登录操作
+📂 项目结构
+plaintext
+ai-interview-assistant/
+├── frontend/    # Next.js 前端项目
+├── backend/     # FastAPI 后端项目
+└── README.md    # 项目说明文档
