@@ -1,0 +1,13 @@
+# === 后端 Python ===
+backend/__pycache__/
+backend/.env
+backend/*.log
+backend/*.pyc
+
+# === 系统/编辑器文件 ===
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
