@@ -1,5 +1,8 @@
-from database import engine
+import requests
 
-conn = engine.connect()
+url = "http://127.0.0.1:8000/stream_generate_questions"
 
-print("数据库连接成功")
+with requests.post(url, stream=True) as r:
+    for line in r.iter_lines():
+        if line:
+            print("Received:", line.decode())

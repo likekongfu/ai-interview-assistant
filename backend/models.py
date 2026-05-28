@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, Text, TIMESTAMP
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 
-Base = declarative_base()
+from db.database import Base
 
 
 # 面试记录表

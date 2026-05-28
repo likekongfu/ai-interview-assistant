@@ -1,7 +1,7 @@
 from jose import jwt
 from fastapi import Header, HTTPException
 
-SECRET_KEY = "ai_interview"
+from core.config import SECRET_KEY
 
 def verify_token(authorization: str = Header(None)):
     
