@@ -1,6 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 from core.config import (
     DB_HOST,
@@ -11,7 +10,8 @@ from core.config import (
     POOL_SIZE,
     POOL_TIMEOUT,
     MAX_OVERFLOW,   
-    POOL_RECYCLE
+    POOL_RECYCLE,
+    SQL_ECHO,
 )
 
 DATABASE_URL = (
@@ -26,7 +26,7 @@ engine = create_engine(
     max_overflow=MAX_OVERFLOW,
     pool_timeout=POOL_TIMEOUT,
     pool_recycle=POOL_RECYCLE,
-    echo=True
+    echo=SQL_ECHO
 )
 
 # 创建session工厂

@@ -1,38 +1,44 @@
 "use client";
 
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSyncExternalStore } from "react";
 
+import { clearSession } from "@/lib/auth";
+
+function subscribeAuthChange(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener("auth-change", callback);
+
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener("auth-change", callback);
+  };
+}
+
+function getUsernameSnapshot() {
+  return localStorage.getItem("username") || "";
+}
+
+function getServerUsernameSnapshot() {
+  return "";
+}
 
 export default function Navbar() {
-
-  const router = useRouter()
-
-  const [username, setUsername] = useState("")
-
-  useEffect(() => {
-
-  const name = localStorage.getItem("username")
-
-  if (name) {
-    setUsername(name)
-  }
-
-}, [])
+  const router = useRouter();
+  const username = useSyncExternalStore(
+    subscribeAuthChange,
+    getUsernameSnapshot,
+    getServerUsernameSnapshot
+  );
 
   const handleLogout = () => {
-
-    localStorage.removeItem("token")
-    localStorage.removeItem("username")
-
-    router.push("/login")
-
-  }
+    clearSession();
+    router.push("/login");
+  };
 
   return (
-
-    <div
+    <nav
       style={{
         width: "100%",
         height: "70px",
@@ -44,70 +50,31 @@ export default function Navbar() {
         padding: "0 40px",
         position: "sticky",
         top: 0,
-        zIndex: 1000
+        zIndex: 1000,
+        boxSizing: "border-box",
       }}
     >
-
-      {/* 左侧 */}
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "40px"
-        }}
-      >
-
-        <div
-          style={{
-            fontSize: "24px",
-            fontWeight: "bold",
-            color: "#111827"
-          }}
-        >
-          AI面试助手
+      <div style={{ display: "flex", alignItems: "center", gap: "40px" }}>
+        <div style={{ fontSize: "24px", fontWeight: "bold", color: "#111827" }}>
+          AI 面试助手
         </div>
 
-        <Link
-          href="/"
-          style={{
-            textDecoration: "none",
-            color: "#374151",
-            fontWeight: 500
-          }}
-        >
+        <Link href="/" style={navLinkStyle}>
           首页
         </Link>
 
-        <Link
-          href="/history"
-          style={{
-            textDecoration: "none",
-            color: "#374151",
-            fontWeight: 500
-          }}
-        >
-          历史记录
+        <Link href="/history" style={navLinkStyle}>
+          刷题记录
         </Link>
 
+        <Link href="/interview-records" style={navLinkStyle}>
+          面试记录
+        </Link>
       </div>
 
-      {/* 右侧 */}
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "20px"
-        }}
-      >
-
-        <div
-          style={{
-            color: "#6b7280"
-          }}
-        >
-          欢迎，{username}
+      <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+        <div style={{ color: "#6b7280" }}>
+          {username ? `欢迎，${username}` : "未登录"}
         </div>
 
         <button
@@ -119,16 +86,18 @@ export default function Navbar() {
             border: "none",
             borderRadius: "8px",
             cursor: "pointer",
-            fontWeight: "bold"
+            fontWeight: "bold",
           }}
         >
           退出登录
         </button>
-
       </div>
-
-    </div>
-
-  )
-
+    </nav>
+  );
 }
+
+const navLinkStyle = {
+  textDecoration: "none",
+  color: "#374151",
+  fontWeight: 500,
+};

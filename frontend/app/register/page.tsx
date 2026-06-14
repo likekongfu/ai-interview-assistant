@@ -1,95 +1,87 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+
+import { apiRequest } from "@/lib/api";
+
+type RegisterResponse = {
+  message: string;
+};
 
 export default function RegisterPage() {
-
-  const router = useRouter()
-
-  const [username, setUsername] = useState("")
-  const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
+    const trimmedUsername = username.trim();
 
-    if (!username || !password) {
-      alert("请输入用户名和密码")
-      return
+    if (!trimmedUsername || !password) {
+      toast.error("请输入用户名和密码");
+      return;
     }
+
+    if (trimmedUsername.length < 3) {
+      toast.error("用户名至少 3 位");
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("密码至少 6 位");
+      return;
+    }
+
+    setLoading(true);
 
     try {
+      await apiRequest<RegisterResponse>("/register", {
+        method: "POST",
+        body: JSON.stringify({
+          username: trimmedUsername,
+          password,
+        }),
+      });
 
-      setLoading(true)
-
-      const res = await fetch(
-        "http://127.0.0.1:8000/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            username,
-            password
-          })
-        }
-      )
-
-      const result = await res.json()
-
-      setLoading(false)
-
-      if (result.message === "用户名已存在") {
-        alert("用户名已存在")
-        return
-      }
-
-      alert("注册成功")
-
-      router.push("/login")
-
-    } catch (err) {
-
-      console.log(err)
-
-      setLoading(false)
-
-      alert("注册失败")
-
+      toast.success("注册成功，请登录");
+      router.push("/login");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "注册失败");
+    } finally {
+      setLoading(false);
     }
-
-  }
+  };
 
   return (
-
-    <div
+    <main
       style={{
         width: "100%",
-        height: "100vh",
+        minHeight: "100vh",
         background: "#f5f7fb",
         display: "flex",
         justifyContent: "center",
-        alignItems: "center"
+        alignItems: "center",
+        padding: "24px",
       }}
     >
-
-      <div
+      <section
         style={{
-          width: "420px",
+          width: "100%",
+          maxWidth: "420px",
           background: "#fff",
           borderRadius: "20px",
-          padding: "50px",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.05)"
+          padding: "48px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
         }}
       >
-
         <h1
           style={{
             textAlign: "center",
-            fontSize: "42px",
-            marginBottom: "20px",
-            fontWeight: "bold"
+            fontSize: "36px",
+            marginBottom: "12px",
+            fontWeight: "bold",
           }}
         >
           用户注册
@@ -99,16 +91,16 @@ export default function RegisterPage() {
           style={{
             textAlign: "center",
             color: "#666",
-            marginBottom: "40px",
-            fontSize: "16px"
+            marginBottom: "36px",
+            fontSize: "16px",
           }}
         >
-          创建你的 AI 面试账号
+          创建你的 AI 面试助手账号
         </p>
 
         <input
           value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={(event) => setUsername(event.target.value)}
           placeholder="请输入用户名"
           style={{
             width: "100%",
@@ -118,14 +110,17 @@ export default function RegisterPage() {
             marginBottom: "20px",
             fontSize: "16px",
             outline: "none",
-            boxSizing: "border-box"
+            boxSizing: "border-box",
           }}
         />
 
         <input
           type="password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(event) => setPassword(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") handleRegister();
+          }}
           placeholder="请输入密码"
           style={{
             width: "100%",
@@ -135,29 +130,26 @@ export default function RegisterPage() {
             marginBottom: "24px",
             fontSize: "16px",
             outline: "none",
-            boxSizing: "border-box"
+            boxSizing: "border-box",
           }}
         />
 
         <button
           onClick={handleRegister}
+          disabled={loading}
           style={{
             width: "100%",
             padding: "16px",
-            background: "linear-gradient(135deg,#111827,#1f2937)",
+            background: loading ? "#6b7280" : "#111827",
             color: "#fff",
             border: "none",
             borderRadius: "12px",
             fontSize: "18px",
             fontWeight: "bold",
-            cursor: "pointer"
+            cursor: loading ? "not-allowed" : "pointer",
           }}
         >
-          {
-            loading
-              ? "注册中..."
-              : "注册"
-          }
+          {loading ? "注册中..." : "注册"}
         </button>
 
         <div
@@ -165,36 +157,26 @@ export default function RegisterPage() {
             marginTop: "20px",
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center"
+            alignItems: "center",
           }}
         >
-
-          <span
-            style={{
-              color: "#666",
-              fontSize: "14px"
-            }}
-          >
-            已有账号？
-          </span>
-
-          <span
+          <span style={{ color: "#666", fontSize: "14px" }}>已有账号？</span>
+          <button
+            type="button"
             onClick={() => router.push("/login")}
             style={{
+              border: "none",
+              background: "transparent",
               color: "#111827",
               cursor: "pointer",
-              fontWeight: "bold"
+              fontWeight: "bold",
+              padding: 0,
             }}
           >
             去登录
-          </span>
-
+          </button>
         </div>
-
-      </div>
-
-    </div>
-
-  )
-
+      </section>
+    </main>
+  );
 }

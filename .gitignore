@@ -1,13 +1,58 @@
-# === 后端 Python ===
-backend/__pycache__/
-backend/.env
-backend/*.log
-backend/*.pyc
+# Environment files
+.env
+.env.*
+!.env.example
+!**/.env.example
 
-# === 系统/编辑器文件 ===
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Backend runtime artifacts
+backend/chroma_db/
+backend/vectorstore/
+backend/uploads/
+backend/logs/
+backend/interface_test_results.json
+backend/security_test_results.json
+backend/*.log
+uploads/
+logs/
+chroma_db/
+vectorstore/
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/*.tsbuildinfo
+
+# OS / editor
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
-*.swp
-*.swo
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local database / docker artifacts
+*.sqlite
+*.sqlite3
+*.db
+mysql_data/
+docker-data/

@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import { apiFetch } from "@/lib/api"
 
 export default function DetailPage() {
 
@@ -10,48 +11,51 @@ export default function DetailPage() {
 
   const id = params.id
 
-  const [data, setData] = useState<any[]>([])
+  type HistoryDetailItem = {
+    question: string
+    answer: string
+    overall_score: number
+    technical_score: number
+    logic_score: number
+    experience_score: number
+    communication_score: number
+    feedback: string
+  }
 
+  type ScoreKey = "technical" | "logic" | "experience" | "communication"
+
+  const [data, setData] = useState<HistoryDetailItem[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-
     const token = localStorage.getItem("token")
 
     if (!token) {
       router.push("/login")
     }
+  }, [router])
 
-  }, [])
-
-  // 获取详情数据
-  const getDetail = async () => {
+  const getDetail = useCallback(async () => {
 
     try {
 
-      // 取出 token
       const token = localStorage.getItem("token")
 
-      const res = await fetch(
-        `http://127.0.0.1:8000/history/${id}`,
-        {
-          method: "GET",
-          cache: "no-store",
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        }
-      )
+      const res = await apiFetch(`/history/${id}`, {
+        method: "GET",
+        cache: "no-store",
+        token
+      })
 
-      // token失效
       if (res.status === 401) {
         alert("请重新登录")
+        router.push("/login")
         return
       }
 
       const result = await res.json()
 
-      setData(result)
+      setData(Array.isArray(result) ? result : [])
 
       setLoading(false)
 
@@ -59,20 +63,24 @@ export default function DetailPage() {
 
       console.log(err)
 
+      setLoading(false)
+
     }
 
-  }
+  }, [id, router])
 
-  // 页面进入时请求
   useEffect(() => {
 
     if (id) {
-      getDetail()
+      const timer = window.setTimeout(() => {
+        getDetail()
+      }, 0)
+
+      return () => window.clearTimeout(timer)
     }
 
-  }, [id])
+  }, [getDetail, id])
 
-  // 浏览器返回/前进时重新请求
   useEffect(() => {
 
     const handlePopState = () => {
@@ -85,15 +93,121 @@ export default function DetailPage() {
       window.removeEventListener("popstate", handlePopState)
     }
 
-  }, [])
+  }, [getDetail])
 
-  if (data.length === 0 && !loading) {
+  // loading
+  if (loading) {
 
     return (
 
-      <div style={{ padding: "20px" }}>
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#f5f7fb",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          flexDirection: "column"
+        }}
+      >
 
-        <h2>暂无面试记录</h2>
+        <div
+          style={{
+            fontSize: "64px",
+            marginBottom: "20px"
+          }}
+        >
+          🤖
+        </div>
+
+        <div
+          style={{
+            fontSize: "20px",
+            fontWeight: "bold",
+            color: "#111827"
+          }}
+        >
+          正在加载面试记录...
+        </div>
+
+      </div>
+
+    )
+
+  }
+
+  // 空状态
+  if (data.length === 0) {
+
+    return (
+
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#f5f7fb",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          flexDirection: "column"
+        }}
+      >
+
+        <div
+          style={{
+            fontSize: "72px",
+            marginBottom: "20px"
+          }}
+        >
+          🤖
+        </div>
+
+        <h2
+          style={{
+            fontSize: "36px",
+            fontWeight: "bold",
+            marginBottom: "12px",
+            color: "#111827"
+          }}
+        >
+          暂无面试记录
+        </h2>
+
+        <p
+          style={{
+            color: "#6b7280",
+            marginBottom: "32px",
+            fontSize: "16px"
+          }}
+        >
+          当前面试记录不存在或已被删除
+        </p>
+
+        <div
+          style={{
+            display: "flex",
+            gap: "14px"
+          }}
+        >
+
+
+
+          <button
+            onClick={() => router.push("/")}
+            style={{
+              padding: "12px 22px",
+              border: "none",
+              background: "#2563eb",
+              color: "white",
+              borderRadius: "12px",
+              cursor: "pointer",
+              fontWeight: "bold",
+              fontSize: "15px"
+            }}
+          >
+            开始新面试
+          </button>
+
+        </div>
 
       </div>
 
@@ -111,7 +225,6 @@ export default function DetailPage() {
       }}
     >
 
-      ```
       <div
         style={{
           maxWidth: "1000px",
@@ -119,31 +232,16 @@ export default function DetailPage() {
         }}
       >
 
-        {/* 返回按钮 */}
 
-        <button
-          onClick={() => router.push("/history")}
-          style={{
-            marginBottom: "24px",
-            padding: "10px 18px",
-            border: "none",
-            background: "#111827",
-            color: "white",
-            borderRadius: "10px",
-            cursor: "pointer",
-            fontWeight: "bold"
-          }}
-        >
-          ← 返回历史记录
-        </button>
+
 
         {/* 页面标题 */}
 
         <div
           style={{
             background: "#ffffff",
-            borderRadius: "20px",
-            padding: "30px",
+            borderRadius: "24px",
+            padding: "32px",
             marginBottom: "30px",
             boxShadow: "0 2px 10px rgba(0,0,0,0.05)"
           }}
@@ -151,18 +249,20 @@ export default function DetailPage() {
 
           <h1
             style={{
-              fontSize: "36px",
+              fontSize: "38px",
               fontWeight: "bold",
-              marginBottom: "10px"
+              marginBottom: "12px",
+              color: "#111827"
             }}
           >
-            AI 面试分析报告
+            AI 刷题分析报告
           </h1>
 
           <p
             style={{
               color: "#6b7280",
-              lineHeight: 1.8
+              lineHeight: 1.8,
+              fontSize: "16px"
             }}
           >
             AI 根据本次模拟面试生成的综合能力分析
@@ -172,14 +272,14 @@ export default function DetailPage() {
 
         {
 
-          data.map((item: any, index: number) => (
+          data.map((item, index) => (
 
             <div
               key={index}
               style={{
                 background: "#ffffff",
-                borderRadius: "20px",
-                padding: "30px",
+                borderRadius: "24px",
+                padding: "32px",
                 marginBottom: "30px",
                 boxShadow: "0 2px 10px rgba(0,0,0,0.05)"
               }}
@@ -187,13 +287,14 @@ export default function DetailPage() {
 
               {/* 问题 */}
 
-              <div style={{ marginBottom: "24px" }}>
+              <div style={{ marginBottom: "28px" }}>
 
                 <h2
                   style={{
-                    fontSize: "22px",
+                    fontSize: "24px",
                     fontWeight: "bold",
-                    marginBottom: "12px"
+                    marginBottom: "14px",
+                    color: "#111827"
                   }}
                 >
                   面试问题
@@ -201,8 +302,9 @@ export default function DetailPage() {
 
                 <p
                   style={{
-                    lineHeight: 1.8,
-                    color: "#374151"
+                    lineHeight: 1.9,
+                    color: "#374151",
+                    fontSize: "16px"
                   }}
                 >
                   {item.question}
@@ -212,13 +314,14 @@ export default function DetailPage() {
 
               {/* 回答 */}
 
-              <div style={{ marginBottom: "24px" }}>
+              <div style={{ marginBottom: "28px" }}>
 
                 <h2
                   style={{
-                    fontSize: "22px",
+                    fontSize: "24px",
                     fontWeight: "bold",
-                    marginBottom: "12px"
+                    marginBottom: "14px",
+                    color: "#111827"
                   }}
                 >
                   我的回答
@@ -226,8 +329,9 @@ export default function DetailPage() {
 
                 <p
                   style={{
-                    lineHeight: 1.8,
-                    color: "#374151"
+                    lineHeight: 1.9,
+                    color: "#374151",
+                    fontSize: "16px"
                   }}
                 >
                   {item.answer}
@@ -239,9 +343,9 @@ export default function DetailPage() {
 
               <div
                 style={{
-                  marginBottom: "30px",
-                  padding: "24px",
-                  borderRadius: "18px",
+                  marginBottom: "32px",
+                  padding: "28px",
+                  borderRadius: "20px",
                   background: "#f9fafb",
                   border: "1px solid #e5e7eb"
                 }}
@@ -258,7 +362,7 @@ export default function DetailPage() {
 
                 <div
                   style={{
-                    fontSize: "56px",
+                    fontSize: "60px",
                     fontWeight: "bold",
                     color:
                       item.overall_score >= 75
@@ -275,169 +379,85 @@ export default function DetailPage() {
 
               {/* 能力分析 */}
 
-              <div style={{ marginBottom: "30px" }}>
+              <div style={{ marginBottom: "32px" }}>
 
                 <h2
                   style={{
-                    fontSize: "22px",
+                    fontSize: "24px",
                     fontWeight: "bold",
-                    marginBottom: "24px"
+                    marginBottom: "24px",
+                    color: "#111827"
                   }}
                 >
                   能力分析
                 </h2>
 
-                {/* 技术能力 */}
+                {
+                  (["technical", "logic", "experience", "communication"] as ScoreKey[]).map((key) => {
 
-                <div style={{ marginBottom: "20px" }}>
+                    const labelMap: Record<ScoreKey, string> = {
+                      technical: "技术能力",
+                      logic: "逻辑表达",
+                      experience: "工程经验",
+                      communication: "沟通表达"
+                    }
 
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: "8px"
-                    }}
-                  >
-                    <span>技术能力</span>
+                    const colorMap: Record<ScoreKey, string> = {
+                      technical: "#10b981",
+                      logic: "#3b82f6",
+                      experience: "#f59e0b",
+                      communication: "#8b5cf6"
+                    }
 
-                    <span>{item.technical_score}%</span>
-                  </div>
+                    const score = item[`${key}_score`]
 
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "12px",
-                      background: "#e5e7eb",
-                      borderRadius: "999px",
-                      overflow: "hidden"
-                    }}
-                  >
+                    return (
 
-                    <div
-                      style={{
-                        width: `${item.technical_score}%`,
-                        height: "100%",
-                        background: "#10b981"
-                      }}
-                    />
+                      <div
+                        style={{
+                          marginBottom: "22px"
+                        }}
+                        key={key}
+                      >
 
-                  </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            marginBottom: "10px"
+                          }}
+                        >
+                          <span>{labelMap[key]}</span>
 
-                </div>
+                          <span>{score}%</span>
+                        </div>
 
-                {/* 逻辑表达 */}
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "12px",
+                            background: "#e5e7eb",
+                            borderRadius: "999px",
+                            overflow: "hidden"
+                          }}
+                        >
 
-                <div style={{ marginBottom: "20px" }}>
+                          <div
+                            style={{
+                              width: `${score}%`,
+                              height: "100%",
+                              background: colorMap[key]
+                            }}
+                          />
 
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: "8px"
-                    }}
-                  >
-                    <span>逻辑表达</span>
+                        </div>
 
-                    <span>{item.logic_score}%</span>
-                  </div>
+                      </div>
 
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "12px",
-                      background: "#e5e7eb",
-                      borderRadius: "999px",
-                      overflow: "hidden"
-                    }}
-                  >
+                    )
 
-                    <div
-                      style={{
-                        width: `${item.logic_score}%`,
-                        height: "100%",
-                        background: "#3b82f6"
-                      }}
-                    />
-
-                  </div>
-
-                </div>
-
-                {/* 工程经验 */}
-
-                <div style={{ marginBottom: "20px" }}>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: "8px"
-                    }}
-                  >
-                    <span>工程经验</span>
-
-                    <span>{item.experience_score}%</span>
-                  </div>
-
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "12px",
-                      background: "#e5e7eb",
-                      borderRadius: "999px",
-                      overflow: "hidden"
-                    }}
-                  >
-
-                    <div
-                      style={{
-                        width: `${item.experience_score}%`,
-                        height: "100%",
-                        background: "#f59e0b"
-                      }}
-                    />
-
-                  </div>
-
-                </div>
-
-                {/* 沟通表达 */}
-
-                <div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      marginBottom: "8px"
-                    }}
-                  >
-                    <span>沟通表达</span>
-
-                    <span>{item.communication_score}%</span>
-                  </div>
-
-                  <div
-                    style={{
-                      width: "100%",
-                      height: "12px",
-                      background: "#e5e7eb",
-                      borderRadius: "999px",
-                      overflow: "hidden"
-                    }}
-                  >
-
-                    <div
-                      style={{
-                        width: `${item.communication_score}%`,
-                        height: "100%",
-                        background: "#8b5cf6"
-                      }}
-                    />
-
-                  </div>
-
-                </div>
+                  })
+                }
 
               </div>
 
@@ -447,16 +467,17 @@ export default function DetailPage() {
                 style={{
                   background: "#f9fafb",
                   border: "1px solid #e5e7eb",
-                  borderRadius: "18px",
-                  padding: "24px"
+                  borderRadius: "20px",
+                  padding: "28px"
                 }}
               >
 
                 <h2
                   style={{
-                    fontSize: "22px",
+                    fontSize: "24px",
                     fontWeight: "bold",
-                    marginBottom: "16px"
+                    marginBottom: "18px",
+                    color: "#111827"
                   }}
                 >
                   AI评价
@@ -465,7 +486,8 @@ export default function DetailPage() {
                 <p
                   style={{
                     lineHeight: 2,
-                    color: "#374151"
+                    color: "#374151",
+                    fontSize: "16px"
                   }}
                 >
                   {item.feedback}
@@ -480,7 +502,6 @@ export default function DetailPage() {
         }
 
       </div>
-      ```
 
     </div>
 

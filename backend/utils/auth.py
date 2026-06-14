@@ -1,25 +1,19 @@
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt
-from fastapi import Header, HTTPException
 
 from core.config import SECRET_KEY
+from core.security import ALGORITHM
 
-def verify_token(authorization: str = Header(None)):
-    
-    print(authorization)
-    if not authorization:
-        raise HTTPException(status_code=401, detail="未登录")
+security = HTTPBearer()
 
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
-
-        token = authorization.split(" ")[1]
-
-        payload = jwt.decode(
-            token,
+        return jwt.decode(
+            credentials.credentials,
             SECRET_KEY,
-            algorithms=["HS256"]
+            algorithms=[ALGORITHM],
         )
-
-        return payload
-
-    except:
-        raise HTTPException(status_code=401, detail="token无效")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")

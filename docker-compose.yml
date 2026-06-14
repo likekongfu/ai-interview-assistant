@@ -1,0 +1,103 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ai_interview_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      MYSQL_DATABASE: ${DB_NAME:?DB_NAME is required}
+      MYSQL_USER: ${DB_USER:?DB_USER is required}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u${DB_USER} -p${DB_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - ai_interview_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai_interview_backend
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      DB_HOST: mysql
+      MYSQL_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:?DB_USER is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      POOL_SIZE: ${POOL_SIZE:-5}
+      MAX_OVERFLOW: ${MAX_OVERFLOW:-10}
+      POOL_TIMEOUT: ${POOL_TIMEOUT:-30}
+      POOL_RECYCLE: ${POOL_RECYCLE:-1800}
+      SQL_ECHO: ${SQL_ECHO:-false}
+      LLM_PROVIDER: ${LLM_PROVIDER:-deepseek}
+      LLM_TIMEOUT: ${LLM_TIMEOUT:-60}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-v4-flash}
+      CHROMA_DB_PATH: /app/chroma_db
+      CHROMA_COLLECTION_NAME: ${CHROMA_COLLECTION_NAME:-interview_docs}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      TOP_K: ${TOP_K:-3}
+      MAX_FOLLOW_UP: ${MAX_FOLLOW_UP:-3}
+    volumes:
+      - backend_chroma:/app/chroma_db
+    expose:
+      - "8000"
+    networks:
+      - ai_interview_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+    container_name: ai_interview_frontend
+    restart: always
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-/api}
+    expose:
+      - "3000"
+    networks:
+      - ai_interview_network
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: ai_interview_nginx
+    restart: always
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - ai_interview_network
+
+volumes:
+  mysql_data:
+  backend_chroma:
+
+networks:
+  ai_interview_network:
+    driver: bridge
