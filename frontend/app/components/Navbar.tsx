@@ -2,40 +2,45 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
-import { clearSession } from "@/lib/auth";
+import { clearSession, getCurrentUser } from "@/lib/auth";
 
-function subscribeAuthChange(callback: () => void) {
-  window.addEventListener("storage", callback);
-  window.addEventListener("auth-change", callback);
-
-  return () => {
-    window.removeEventListener("storage", callback);
-    window.removeEventListener("auth-change", callback);
-  };
-}
-
-function getUsernameSnapshot() {
-  return localStorage.getItem("username") || "";
-}
-
-function getServerUsernameSnapshot() {
-  return "";
+function getUsernameFromSession() {
+  const user = getCurrentUser();
+  return user?.username || "";
 }
 
 export default function Navbar() {
   const router = useRouter();
-  const username = useSyncExternalStore(
-    subscribeAuthChange,
-    getUsernameSnapshot,
-    getServerUsernameSnapshot
-  );
+  const [username, setUsername] = useState("");
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      setUsername(getUsernameFromSession());
+    };
+
+    syncAuthState();
+    window.addEventListener("storage", syncAuthState);
+    window.addEventListener("auth-change", syncAuthState);
+
+    return () => {
+      window.removeEventListener("storage", syncAuthState);
+      window.removeEventListener("auth-change", syncAuthState);
+    };
+  }, []);
+
+  const handleLogin = () => {
+    router.push("/login");
+  };
 
   const handleLogout = () => {
     clearSession();
+    setUsername("");
     router.push("/login");
   };
+
+  const isLoggedIn = Boolean(username);
 
   return (
     <nav
@@ -74,23 +79,18 @@ export default function Navbar() {
 
       <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
         <div style={{ color: "#6b7280" }}>
-          {username ? `欢迎，${username}` : "未登录"}
+          {isLoggedIn ? `欢迎，${username}` : "未登录"}
         </div>
 
-        <button
-          onClick={handleLogout}
-          style={{
-            padding: "10px 18px",
-            background: "#111827",
-            color: "#ffffff",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontWeight: "bold",
-          }}
-        >
-          退出登录
-        </button>
+        {isLoggedIn ? (
+          <button onClick={handleLogout} style={authButtonStyle}>
+            退出登录
+          </button>
+        ) : (
+          <button onClick={handleLogin} style={authButtonStyle}>
+            登录
+          </button>
+        )}
       </div>
     </nav>
   );
@@ -100,4 +100,14 @@ const navLinkStyle = {
   textDecoration: "none",
   color: "#374151",
   fontWeight: 500,
+};
+
+const authButtonStyle = {
+  padding: "10px 18px",
+  background: "#111827",
+  color: "#ffffff",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontWeight: "bold",
 };
