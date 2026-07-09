@@ -5,6 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 BACKEND_ROOT = os.path.dirname(os.path.dirname(__file__))
 if BACKEND_ROOT not in sys.path:
@@ -54,108 +56,85 @@ def capture_tokens(monkeypatch):
     return payloads
 
 
-def test_web_username_password_login_still_success(monkeypatch):
+@pytest.fixture
+def sqlite_session_local():
+    engine = create_engine("sqlite:///:memory:")
+    User.__table__.create(bind=engine)
+    return sessionmaker(bind=engine)
+
+
+def test_web_username_password_login_still_success(monkeypatch, sqlite_session_local):
     payloads = capture_tokens(monkeypatch)
-    web_user = user(id=10, username="alice")
-    monkeypatch.setattr(auth_service, "get_user_by_username", lambda username: web_user)
+    with sqlite_session_local() as db:
+        db.add(User(username="alice", password="pbkdf2_sha256$120000$00$00"))
+        db.commit()
+
+    monkeypatch.setattr(auth_service, "SessionLocal", sqlite_session_local)
     monkeypatch.setattr(auth_service, "verify_password", lambda password, hashed: True)
 
     result = auth_service.login_user(LoginRequest(username="alice", password="secret123"))
     payload = payloads[0]
 
     assert result["username"] == "alice"
-    assert result["user_id"] == 10
-    assert payload["user_id"] == 10
-    assert payload["sub"] == "10"
+    assert result["user_id"] == 1
+    assert payload["user_id"] == 1
+    assert payload["sub"] == "1"
     assert payload["client"] == "quiz"
 
 
-def test_wechat_first_login_creates_user(monkeypatch):
+def test_wechat_first_login_creates_user(monkeypatch, sqlite_session_local):
     payloads = capture_tokens(monkeypatch)
-    created = []
-    wx_user = user(
-        id=20,
-        username=None,
-        password=None,
-        wechat_appid="quiz_appid",
-        wechat_openid="openid_a",
-        nickname="微信用户",
-    )
 
     monkeypatch.setattr(auth_service, "WECHAT_APPID", "quiz_appid")
     monkeypatch.setattr(auth_service, "_wechat_code_to_openid", lambda code: "openid_a")
-    monkeypatch.setattr(auth_service, "get_user_by_wechat_identity", lambda appid, openid: None)
-    monkeypatch.setattr(
-        auth_service,
-        "create_wechat_user",
-        lambda openid, appid: created.append((appid, openid)) or wx_user,
-    )
-    monkeypatch.setattr(auth_service, "update_user_last_login", lambda user_id, login_at: wx_user)
+    monkeypatch.setattr(auth_service, "SessionLocal", sqlite_session_local)
 
     result = auth_service.login_wechat_user(WechatLoginRequest(code="code_a"))
+    with sqlite_session_local() as db:
+        users = db.query(User).all()
 
-    assert created == [("quiz_appid", "openid_a")]
+    assert len(users) == 1
+    assert users[0].username is None
+    assert users[0].password is None
+    assert users[0].wechat_appid == "quiz_appid"
+    assert users[0].wechat_openid == "openid_a"
+    assert result["token"] == f"token-{users[0].id}"
     assert result["user"]["nickname"] == "微信用户"
     assert payloads[0]["client"] == "quiz"
+    assert payloads[0]["user_id"] == users[0].id
 
 
-def test_same_wechat_user_second_login_reuses_user(monkeypatch):
+def test_same_wechat_user_second_login_reuses_user(monkeypatch, sqlite_session_local):
     payloads = capture_tokens(monkeypatch)
-    users = {}
-    create_count = {"value": 0}
-
-    def get_user(appid, openid):
-        return users.get((appid, openid))
-
-    def create_user(openid, appid):
-        create_count["value"] += 1
-        users[(appid, openid)] = user(
-            id=create_count["value"],
-            username=None,
-            password=None,
-            wechat_appid=appid,
-            wechat_openid=openid,
-            nickname="微信用户",
-        )
-        return users[(appid, openid)]
 
     monkeypatch.setattr(auth_service, "WECHAT_APPID", "quiz_appid")
     monkeypatch.setattr(auth_service, "_wechat_code_to_openid", lambda code: "same_openid")
-    monkeypatch.setattr(auth_service, "get_user_by_wechat_identity", get_user)
-    monkeypatch.setattr(auth_service, "create_wechat_user", create_user)
-    monkeypatch.setattr(auth_service, "update_user_last_login", lambda user_id, login_at: users[("quiz_appid", "same_openid")])
+    monkeypatch.setattr(auth_service, "SessionLocal", sqlite_session_local)
 
-    auth_service.login_wechat_user(WechatLoginRequest(code="first"))
-    auth_service.login_wechat_user(WechatLoginRequest(code="second"))
+    first = auth_service.login_wechat_user(WechatLoginRequest(code="first"))
+    second = auth_service.login_wechat_user(WechatLoginRequest(code="second"))
+    with sqlite_session_local() as db:
+        users = db.query(User).all()
 
-    assert create_count["value"] == 1
+    assert len(users) == 1
+    assert first["token"]
+    assert second["token"]
+    assert first["user"]["nickname"] == "微信用户"
+    assert second["user"]["nickname"] == "微信用户"
     assert payloads[0]["user_id"] == payloads[1]["user_id"]
 
 
-def test_different_openid_creates_different_users(monkeypatch):
+def test_different_openid_creates_different_users(monkeypatch, sqlite_session_local):
     capture_tokens(monkeypatch)
-    users = {}
-
-    def create_user(openid, appid):
-        created = user(
-            id=len(users) + 1,
-            username=None,
-            password=None,
-            wechat_appid=appid,
-            wechat_openid=openid,
-            nickname="微信用户",
-        )
-        users[(appid, openid)] = created
-        return created
 
     monkeypatch.setattr(auth_service, "WECHAT_APPID", "quiz_appid")
     monkeypatch.setattr(auth_service, "_wechat_code_to_openid", lambda code: f"openid_{code}")
-    monkeypatch.setattr(auth_service, "get_user_by_wechat_identity", lambda appid, openid: users.get((appid, openid)))
-    monkeypatch.setattr(auth_service, "create_wechat_user", create_user)
-    monkeypatch.setattr(auth_service, "update_user_last_login", lambda user_id, login_at: next(item for item in users.values() if item.id == user_id))
+    monkeypatch.setattr(auth_service, "SessionLocal", sqlite_session_local)
 
     auth_service.login_wechat_user(WechatLoginRequest(code="a"))
     auth_service.login_wechat_user(WechatLoginRequest(code="b"))
+    with sqlite_session_local() as db:
+        users = db.query(User).all()
 
     assert len(users) == 2
 
@@ -171,9 +150,12 @@ def test_wechat_identity_unique_constraint_exists():
     assert [column.name for column in constraints[0].columns] == ["wechat_appid", "wechat_openid"]
 
 
-def test_wechat_user_password_login_returns_clear_error(monkeypatch):
-    wx_user = user(username="wx_user", password=None)
-    monkeypatch.setattr(auth_service, "get_user_by_username", lambda username: wx_user)
+def test_wechat_user_password_login_returns_clear_error(monkeypatch, sqlite_session_local):
+    with sqlite_session_local() as db:
+        db.add(User(username="wx_user", password=None))
+        db.commit()
+
+    monkeypatch.setattr(auth_service, "SessionLocal", sqlite_session_local)
 
     with pytest.raises(HTTPException) as exc:
         auth_service.login_user(LoginRequest(username="wx_user", password="secret123"))
@@ -187,7 +169,7 @@ def test_token_contains_user_id_and_quiz_client():
     original = auth_service.create_access_token
     auth_service.create_access_token = lambda payload: payloads.append(payload) or "token"
     try:
-        token = auth_service._build_token(user(id=88, username=None, password=None))
+        token = auth_service._build_token_by_user_id(88)
     finally:
         auth_service.create_access_token = original
     payload = payloads[0]

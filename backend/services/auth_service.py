@@ -1,4 +1,5 @@
 import json
+import logging
 import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta
@@ -9,22 +10,21 @@ from core.config import WECHAT_APPID, WECHAT_LOGIN_URL, WECHAT_MOCK_LOGIN, WECHA
 from core.security import create_access_token, hash_password, verify_password
 from db.crud import (
     create_user,
-    create_wechat_user,
-    get_user_by_wechat_identity,
     get_user_by_username,
-    update_user_last_login,
-    update_user_password,
 )
+from db.database import SessionLocal
+from models import User
 from schemas import LoginRequest, RegisterRequest, ResetPasswordRequest, WechatLoginRequest
 
+logger = logging.getLogger(__name__)
 
-def _build_token(user):
+
+def _build_token_by_user_id(user_id: int):
     expire = datetime.utcnow() + timedelta(hours=24)
     return create_access_token(
         {
-            "sub": str(user.id),
-            "user_id": user.id,
-            "username": user.username or "",
+            "sub": str(user_id),
+            "user_id": user_id,
             "client": "quiz",
             "exp": expire,
         }
@@ -58,28 +58,36 @@ def register_user(req: RegisterRequest):
 
 def login_user(req: LoginRequest):
     """校验用户名密码并签发 24 小时有效的 JWT。"""
-    user = get_user_by_username(req.username)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    if user.password is None:
-        raise HTTPException(status_code=400, detail="该账号未设置密码")
-    if not verify_password(req.password, user.password):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.username == req.username).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="Invalid username or password")
+        if user.password is None:
+            raise HTTPException(status_code=400, detail="该账号未设置密码")
+        if not verify_password(req.password, user.password):
+            raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    if not user.password.startswith("pbkdf2_"):
-        update_user_password(user.id, hash_password(req.password))
+        if not user.password.startswith("pbkdf2_"):
+            user.password = hash_password(req.password)
+            db.commit()
+            db.refresh(user)
 
-    token = _build_token(user)
-    return {"token": token, "username": user.username, "user_id": user.id}
+        user_id = user.id
+        username = user.username
+
+    token = _build_token_by_user_id(user_id)
+    return {"token": token, "username": username, "user_id": user_id}
 
 
 def reset_password(req: ResetPasswordRequest):
     """根据用户名重置密码。当前项目用于忘记密码功能。"""
-    user = get_user_by_username(req.username)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    with SessionLocal() as db:
+        user = db.query(User).filter(User.username == req.username).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    update_user_password(user.id, hash_password(req.new_password))
+        user.password = hash_password(req.new_password)
+        db.commit()
     return {"message": "Password reset success"}
 
 
@@ -114,8 +122,39 @@ def _wechat_code_to_openid(code: str) -> str:
 def login_wechat_user(req: WechatLoginRequest):
     """微信小程序登录：code 换 openid，创建或读取用户，并签发 JWT。"""
     openid = _wechat_code_to_openid(req.code)
-    user = get_user_by_wechat_identity(WECHAT_APPID, openid)
-    if not user:
-        user = create_wechat_user(openid=openid, appid=WECHAT_APPID)
-    user = update_user_last_login(user.id, datetime.utcnow()) or user
-    return {"token": _build_token(user), "user": _profile(user)}
+    try:
+        with SessionLocal() as db:
+            user = (
+                db.query(User)
+                .filter(User.wechat_appid == WECHAT_APPID, User.wechat_openid == openid)
+                .first()
+            )
+            if not user:
+                user = User(
+                    username=None,
+                    password=None,
+                    wechat_appid=WECHAT_APPID,
+                    wechat_openid=openid,
+                    nickname="微信用户",
+                    avatar_url="",
+                    level=1,
+                    answered_count=0,
+                    correct_count=0,
+                    streak_days=0,
+                    total_score=0,
+                )
+                db.add(user)
+
+            user.last_login_at = datetime.utcnow()
+            db.commit()
+            db.refresh(user)
+
+            user_id = user.id
+            profile = _profile(user)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Wechat login database operation failed")
+        raise HTTPException(status_code=500, detail="登录服务暂时不可用") from exc
+
+    return {"token": _build_token_by_user_id(user_id), "user": profile}

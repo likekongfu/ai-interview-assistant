@@ -5,6 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from db.database import Base, engine
 import models
 from routes import generate, evaluate, history, auth,follow_up,report,upload_resume,start_interview,interview_records, users
+from utils.upload_dir import get_upload_dir
 # quiz 路由已停用（改用本地固定题库），代码保留备用
 # from routes import quiz
 
@@ -37,4 +38,5 @@ app.include_router(interview_records.router)
 # app.include_router(quiz.router, prefix="/quiz")
 # app.include_router(quiz.router, prefix="/api/quiz")
 
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+UPLOAD_DIR = get_upload_dir()
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")

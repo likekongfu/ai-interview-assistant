@@ -13,6 +13,12 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+test/
+tests/
+backend/test/
+backend/tests/
+test_*.py
+*_test.py
 
 # Backend runtime artifacts
 backend/chroma_db/
