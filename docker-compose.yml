@@ -56,6 +56,10 @@ services:
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
       TOP_K: ${TOP_K:-3}
       MAX_FOLLOW_UP: ${MAX_FOLLOW_UP:-3}
+      QUIZ_WECHAT_APPID: ${QUIZ_WECHAT_APPID:?QUIZ_WECHAT_APPID is required}
+      QUIZ_WECHAT_SECRET: ${QUIZ_WECHAT_SECRET:?QUIZ_WECHAT_SECRET is required}
+      QUIZ_SIGNING_KEY: ${QUIZ_SIGNING_KEY:?QUIZ_SIGNING_KEY is required}
+      QUIZ_TOKEN_TTL: ${QUIZ_TOKEN_TTL:-7200}
       UPLOAD_DIR: ${UPLOAD_DIR:-/app/uploads}
     volumes:
       - backend_chroma:/app/chroma_db
