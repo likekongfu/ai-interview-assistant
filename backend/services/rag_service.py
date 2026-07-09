@@ -19,6 +19,7 @@ _db = None
 
 
 def get_retriever(k: int = 3):
+    """获取 RAG 检索器；DeepSeek 模式下没有本地 embedding 服务时禁用 RAG。"""
     if LLM_PROVIDER == "deepseek":
         logger.info("rag_disabled provider=deepseek reason=no_local_embedding_service")
         return RunnableLambda(lambda _: [])
@@ -27,6 +28,7 @@ def get_retriever(k: int = 3):
 
 
 def _get_chroma_db():
+    """懒加载 Chroma 向量库连接，避免服务启动时立即初始化 embedding。"""
     global _db
     if _db is None:
         logger.info("rag_provider=ollama_embeddings model=%s", EMBEDDING_MODEL)

@@ -3,6 +3,7 @@ from sqlalchemy import (
     Integer,
     Text,
     TIMESTAMP,
+    Date,
     DateTime,
     String,
     ForeignKey,
@@ -16,6 +17,7 @@ from db.database import Base
 
 # 刷题模式的记录表
 class Interview(Base):
+    """刷题练习主表，保存一次刷题任务的 JD/题库描述和所属用户。"""
 
     __tablename__ = "interviews"
 
@@ -30,6 +32,7 @@ class Interview(Base):
 
 # 面试模式记录
 class AIInterviewInfo(Base):
+    """AI 面试主表，保存简历驱动面试的状态和归属关系。"""
 
     __tablename__ = "ai_interview_info"
 
@@ -48,6 +51,7 @@ class AIInterviewInfo(Base):
 
 # 回答记录表
 class InterviewAnswer(Base):
+    """刷题模式答题记录表，保存题目、答案、各维度评分和反馈。"""
 
     __tablename__ = "interview_answers"
 
@@ -76,6 +80,7 @@ class InterviewAnswer(Base):
 
 # ai面试聊天记录表
 class InterviewMessage(Base):
+    """AI 面试对话消息表，保存面试官和候选人的聊天内容。"""
     __tablename__ = "interview_messages"
 
     id = Column(Integer, primary_key=True)
@@ -91,6 +96,7 @@ class InterviewMessage(Base):
     topic_id = Column(Integer, ForeignKey("interview_topics.id"), nullable=True)
 
     def to_dict(self):
+        """把消息 ORM 对象转换成普通字典。"""
         return {
             "id": self.id,
             "interview_id": self.interview_id,
@@ -102,6 +108,7 @@ class InterviewMessage(Base):
 
 
 class Resume(Base):
+    """简历表，保存用户上传文件名和解析后的简历文本。"""
     __tablename__ = "resumes"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -112,14 +119,34 @@ class Resume(Base):
 
 
 class User(Base):
+    """用户表，保存账号登录和微信小程序用户资料。"""
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint(
+            "wechat_appid",
+            "wechat_openid",
+            name="uq_users_wechat_identity",
+        ),
+    )
 
     id = Column(Integer, primary_key=True)
-    username = Column(String(255), unique=True, nullable=False)
-    password = Column(String(255), nullable=False)
+    username = Column(String(255), unique=True, nullable=True)
+    password = Column(String(255), nullable=True)
+    wechat_appid = Column(String(64), nullable=True)
+    wechat_openid = Column(String(128), nullable=True)
+    nickname = Column(String(255), nullable=True)
+    avatar_url = Column(String(1024), nullable=True)
+    level = Column(Integer, nullable=False, default=1)
+    answered_count = Column(Integer, nullable=False, default=0)
+    correct_count = Column(Integer, nullable=False, default=0)
+    streak_days = Column(Integer, nullable=False, default=0)
+    total_score = Column(Integer, nullable=False, default=0)
+    last_practice_date = Column(Date, nullable=True)
+    last_login_at = Column(DateTime, nullable=True)
 
 
 class InterviewTopic(Base):
+    """AI 面试 Topic 表，记录每个技术主题的顺序、追问次数和完成状态。"""
     __tablename__ = "interview_topics"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -144,6 +171,7 @@ class InterviewTopic(Base):
 
 
 class InterviewReport(Base):
+    """AI 面试报告表，保存结构化报告和 Topic 得分 JSON。"""
     __tablename__ = "interview_reports"
     __table_args__ = (UniqueConstraint("interview_id", name="uq_interview_reports_interview_id"),)
 
@@ -158,3 +186,4 @@ class InterviewReport(Base):
     study_plan = Column(Text, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+

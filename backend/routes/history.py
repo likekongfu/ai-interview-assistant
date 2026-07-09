@@ -10,6 +10,7 @@ router = APIRouter()
 
 @router.get("")
 def get_history(user=Depends(verify_token)):
+    """查询当前用户的刷题记录列表。"""
     db = SessionLocal()
     try:
         interviews = (
@@ -45,6 +46,7 @@ def get_history(user=Depends(verify_token)):
 
 @router.get("/{interview_id}")
 def get_interview_detail(interview_id: int, user=Depends(verify_token)):
+    """查询当前用户某条刷题记录的答题详情。"""
     db = SessionLocal()
     try:
         practice = (
@@ -81,6 +83,7 @@ def get_interview_detail(interview_id: int, user=Depends(verify_token)):
 
 @router.delete("/single_delete/{interview_id}")
 def delete_history(interview_id: int, user=Depends(verify_token)):
+    """删除当前用户的一条刷题记录及其答题明细。"""
     db = SessionLocal()
     try:
         interview = (
@@ -104,6 +107,7 @@ def delete_history(interview_id: int, user=Depends(verify_token)):
 
 @router.delete("/batch_delete/batch_delete")
 def batch_delete(req: BatchDeleteRequest, user=Depends(verify_token)):
+    """批量删除当前用户拥有的刷题记录。"""
     db = SessionLocal()
     try:
         owned_ids = [

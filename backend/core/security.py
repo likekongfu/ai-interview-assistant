@@ -12,6 +12,7 @@ ITERATIONS = 120_000
 
 
 def hash_password(password: str) -> str:
+    """使用 PBKDF2-SHA256 对明文密码加盐哈希。"""
     salt = os.urandom(16)
     digest = hashlib.pbkdf2_hmac(
         HASH_NAME,
@@ -23,6 +24,7 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, password_hash: str) -> bool:
+    """校验明文密码和数据库中的密码哈希是否匹配。"""
     if not password_hash:
         return False
 
@@ -40,4 +42,5 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def create_access_token(payload: dict) -> str:
+    """根据 payload 生成 JWT 访问令牌。"""
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)

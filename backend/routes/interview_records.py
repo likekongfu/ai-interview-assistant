@@ -17,6 +17,7 @@ router = APIRouter()
 
 @router.get("/interviews")
 def get_ai_interview_records(user=Depends(verify_token)):
+    """查询当前用户参与过的 AI 面试记录列表。"""
     db = SessionLocal()
     try:
         user_id = user["user_id"]
@@ -73,6 +74,7 @@ def batch_delete_ai_interview_records(
     req: BatchDeleteRequest,
     user=Depends(verify_token),
 ):
+    """批量删除当前用户拥有的 AI 面试记录。"""
     if not req.ids:
         return {"message": "未选择记录"}
 
@@ -103,6 +105,7 @@ def batch_delete_ai_interview_records(
 
 @router.delete("/interviews/{interview_id}")
 def delete_ai_interview_record(interview_id: int, user=Depends(verify_token)):
+    """删除当前用户的一条 AI 面试记录。"""
     db = SessionLocal()
     try:
         interview = (
@@ -127,6 +130,7 @@ def delete_ai_interview_record(interview_id: int, user=Depends(verify_token)):
 
 
 def delete_ai_interview_rows(db, interview_ids: list[int]):
+    """删除 AI 面试相关联的报告、消息、Topic 和主记录。"""
     db.query(InterviewReport).filter(
         InterviewReport.interview_id.in_(interview_ids)
     ).delete(synchronize_session=False)

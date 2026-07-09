@@ -9,6 +9,7 @@ router = APIRouter()
 
 @router.post("", response_model=EvaluateResponse)
 def evaluate_answer(req: EvaluateRequest, user=Depends(verify_token)):
+    """刷题评分接口：提交答案后调用 AI 评分并保存刷题记录。"""
     if not req.answer.strip():
         raise HTTPException(status_code=400, detail="答案不能为空")
 

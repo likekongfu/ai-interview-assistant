@@ -16,6 +16,11 @@ INVALID_RESUME_MESSAGE = (
 
 
 def start_interview_session(resume_id: int, user_id: int):
+    """根据简历创建一场 AI 面试，并生成第一道面试题。
+
+    这里会先校验简历归属和简历内容有效性，再生成 Topic。
+    只有 Topic 生成成功后才会创建 interview，避免普通文档造成脏数据。
+    """
     resume = get_resume_by_id(resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
@@ -60,6 +65,7 @@ def start_interview_session(resume_id: int, user_id: int):
 
 
 def generate_topics(resume_text: str, resume_id: int, user_id: int) -> list[str]:
+    """调用 LLM 从简历中提取本场面试要考察的 Topic 列表。"""
     try:
         raw_result = topic_chain.invoke({"resume": resume_text})
         topic_result = parse_json_response(raw_result)
@@ -92,6 +98,7 @@ def generate_first_question(
     resume_id: int,
     user_id: int,
 ) -> str:
+    """基于简历和当前 Topic 调用 LLM 生成第一道问题。"""
     try:
         question_text = first_question_chain.invoke({"resume": resume_text, "topic": topic})
     except Exception as exc:
@@ -118,6 +125,11 @@ def generate_first_question(
 
 
 def is_valid_resume_text(resume_text: str) -> bool:
+    """判断解析出的文本是否像一份有效简历。
+
+    主要依据：长度、教育/工作/项目/技能等简历关键词、技术关键词和联系方式。
+    普通说明文档或空文本会被拦截为 400，避免进入 LLM 生成流程。
+    """
     compact_text = re.sub(r"\s+", "", resume_text)
     if len(compact_text) < 80:
         return False
@@ -180,6 +192,7 @@ def is_valid_resume_text(resume_text: str) -> bool:
 
 
 def normalize_topic_list(topic_result: Any) -> list[str]:
+    """把 LLM 输出的 Topic 结果统一整理成去重后的字符串列表。"""
     if isinstance(topic_result, dict):
         topic_result = (
             topic_result.get("topics")

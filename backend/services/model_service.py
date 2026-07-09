@@ -5,6 +5,7 @@ from services.llm_output_parser import parse_json_response
 
 
 def generate_questions(jd: str, interview_id: int | None = None):
+    """根据岗位 JD 生成刷题模式下的 5 道技术面试题。"""
     prompt = f"""
 你是一名资深技术面试官。
 
@@ -27,6 +28,7 @@ def generate_questions(jd: str, interview_id: int | None = None):
 
 
 def evaluate_answer_with_ai(question: str, answer: str):
+    """对刷题答案进行 AI 评分；低质量回答直接走固定低分兜底。"""
     if is_low_quality_answer(answer):
         return low_quality_score()
 
@@ -40,6 +42,7 @@ def evaluate_answer_with_ai(question: str, answer: str):
 
 
 def generate_follow_up(history, jd):
+    """根据刷题/练习历史和岗位 JD 生成一个追问问题。"""
     conversation = ""
     for item in history:
         conversation += f"面试官问题：{item.question}\n候选人回答：{item.answer}\n"
@@ -65,6 +68,7 @@ def generate_follow_up(history, jd):
 
 
 def is_low_quality_answer(answer: str):
+    """判断刷题答案是否过短或明显无效。"""
     normalized = answer.strip().lower()
     invalid_answers = {
         "",
@@ -82,6 +86,7 @@ def is_low_quality_answer(answer: str):
 
 
 def low_quality_score():
+    """返回低质量答案的固定低分评分结果。"""
     return {
         "technical_score": 20,
         "logic_score": 20,

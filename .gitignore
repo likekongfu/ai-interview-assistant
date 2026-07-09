@@ -37,6 +37,9 @@ frontend/test-results/
 frontend/playwright-report/
 frontend/*.tsbuildinfo
 
+# WeChat Mini Program local prototype
+miniprogram/
+
 # OS / editor
 .DS_Store
 Thumbs.db

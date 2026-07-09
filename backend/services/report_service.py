@@ -48,6 +48,7 @@ TECHNICAL_KEYWORDS = (
 
 
 def generate_ai_interview_report(interview_id: int, user_id: int):
+    """生成并保存指定 AI 面试的结构化报告。"""
     interview = get_ai_interview_by_id(interview_id)
     if not interview:
         raise HTTPException(status_code=404, detail="interview_id 不存在")
@@ -120,6 +121,7 @@ def generate_ai_interview_report(interview_id: int, user_id: int):
 
 
 def get_ai_interview_report(interview_id: int, user_id: int):
+    """查询当前用户指定面试的报告；未生成时返回 report_not_generated。"""
     interview = get_ai_interview_by_id(interview_id)
     if not interview:
         raise HTTPException(status_code=404, detail="interview_id 不存在")
@@ -143,6 +145,7 @@ def get_ai_interview_report(interview_id: int, user_id: int):
 
 
 def build_report_with_llm(interview_id: int, topics: list, messages: list):
+    """调用 LLM 生成报告 JSON；失败时返回代码兜底报告。"""
     prompt = build_interview_report_prompt(
         interview_id=interview_id,
         topics_text=build_topics_text(topics),
@@ -162,6 +165,7 @@ def build_report_with_llm(interview_id: int, topics: list, messages: list):
 
 
 def normalize_report(report: Any, topics: list, messages: list):
+    """规范化 LLM 报告字段，缺失或格式异常时使用兜底内容补齐。"""
     if not isinstance(report, dict):
         report = build_fallback_report(topics, messages)
 
@@ -195,6 +199,7 @@ def normalize_report(report: Any, topics: list, messages: list):
 
 
 def normalize_topic_scores(value: Any, topic_names: list[str], fallback: list[dict]):
+    """规范化每个 Topic 的得分，保证 Topic 顺序和数据库中的 Topic 一致。"""
     fallback_by_topic = {item["topic"]: item for item in fallback}
     by_topic = {}
 
@@ -223,6 +228,7 @@ def normalize_topic_scores(value: Any, topic_names: list[str], fallback: list[di
 
 
 def calculate_overall_score(topic_scores: list[dict], topics: list, messages: list):
+    """按 Topic 平均分、完成度和回答稳定性计算综合分。"""
     topic_average = mean([item["score"] for item in topic_scores]) if topic_scores else 60
     completeness = calculate_completeness(topics)
     stability = calculate_answer_stability(messages)
@@ -231,6 +237,7 @@ def calculate_overall_score(topic_scores: list[dict], topics: list, messages: li
 
 
 def calculate_completeness(topics: list):
+    """计算面试完成度，已完成 Topic 占全部 Topic 的比例。"""
     if not topics:
         return 0
     finished_count = sum(1 for topic in topics if topic.finished)
@@ -238,6 +245,7 @@ def calculate_completeness(topics: list):
 
 
 def calculate_answer_stability(messages: list):
+    """根据无效回答、不会回答和过短回答比例计算回答稳定性。"""
     answers = [message.content for message in messages if message.role == "human"]
     if not answers:
         return 30
@@ -257,6 +265,7 @@ def apply_summary_policy(
     topic_scores: list[dict],
     messages: list,
 ):
+    """根据最终分数和无效回答比例修正综合评价，避免低质量回答被过度夸奖。"""
     answers = [message.content for message in messages if message.role == "human"]
     invalid_ratio = calculate_invalid_answer_ratio(answers)
     short_ratio = calculate_short_answer_ratio(answers)
@@ -285,6 +294,7 @@ def apply_strength_display_policy(
     topic_scores: list[dict],
     messages: list,
 ):
+    """决定是否展示优点；低分或无效回答过多时隐藏优点。"""
     answers = [message.content for message in messages if message.role == "human"]
     invalid_ratio = calculate_invalid_answer_ratio(answers)
     short_ratio = calculate_short_answer_ratio(answers)
@@ -313,6 +323,7 @@ def apply_strength_display_policy(
 
 
 def calculate_invalid_answer_ratio(answers: list[str]):
+    """计算无效回答和短“不会”回答在全部回答中的占比。"""
     if not answers:
         return 1
     invalid_count = sum(
@@ -324,6 +335,7 @@ def calculate_invalid_answer_ratio(answers: list[str]):
 
 
 def calculate_short_answer_ratio(answers: list[str]):
+    """计算过短回答在全部回答中的占比。"""
     if not answers:
         return 1
     short_count = sum(1 for answer in answers if len(answer.strip()) < 20)
@@ -331,6 +343,7 @@ def calculate_short_answer_ratio(answers: list[str]):
 
 
 def build_fallback_report(topics: list, messages: list):
+    """在 LLM 失败或返回非法 JSON 时，根据面试记录生成兜底报告。"""
     topic_scores = [
         build_fallback_topic_score(topic.topic, get_topic_answers(topic.id, messages))
         for topic in topics
@@ -369,6 +382,7 @@ def build_fallback_report(topics: list, messages: list):
 
 
 def build_fallback_topic_score(topic: str, answers: list[str]):
+    """根据某个 Topic 下的候选人回答生成兜底 Topic 得分。"""
     if not answers:
         return {
             "topic": topic,
@@ -404,6 +418,7 @@ def build_fallback_topic_score(topic: str, answers: list[str]):
 
 
 def get_topic_answers(topic_id: int, messages: list):
+    """从整场面试消息中提取某个 Topic 下的候选人回答。"""
     return [
         message.content
         for message in messages
@@ -412,6 +427,7 @@ def get_topic_answers(topic_id: int, messages: list):
 
 
 def build_topics_text(topics: list):
+    """把 Topic 状态整理成 LLM 报告 Prompt 使用的文本。"""
     return "\n".join(
         [
             f"- {topic.topic}：追问次数 {topic.follow_up_count}，"
@@ -422,6 +438,7 @@ def build_topics_text(topics: list):
 
 
 def build_conversation_text(messages: list):
+    """把面试消息整理成 LLM 报告 Prompt 使用的对话文本。"""
     role_map = {"ai": "面试官", "human": "候选人"}
     return "\n".join(
         [
@@ -432,6 +449,7 @@ def build_conversation_text(messages: list):
 
 
 def serialize_report(report):
+    """把数据库中的报告对象转换成接口返回的 JSON 结构。"""
     return {
         "interview_id": report.interview_id,
         "overall_score": report.overall_score,
@@ -445,6 +463,7 @@ def serialize_report(report):
 
 
 def normalize_string_list(value: Any, fallback: list[str], min_count: int):
+    """规范化字符串列表字段，并用 fallback 保证最小条数。"""
     if isinstance(value, list):
         result = [clean_text(item) for item in value if clean_text(item)]
     else:
@@ -461,6 +480,7 @@ def normalize_string_list(value: Any, fallback: list[str], min_count: int):
 
 
 def parse_json_list(value: str):
+    """解析数据库中以 JSON 字符串保存的列表字段。"""
     try:
         parsed = json.loads(value)
         return parsed if isinstance(parsed, list) else []
@@ -469,12 +489,14 @@ def parse_json_list(value: str):
 
 
 def clean_text(value: Any):
+    """把任意值转换成去除首尾空白的字符串。"""
     if value is None:
         return ""
     return str(value).strip()
 
 
 def clamp_score(value: Any):
+    """把分数限制在 0 到 100 之间，异常时返回默认分 60。"""
     try:
         return max(0, min(100, round(float(value))))
     except Exception:
@@ -482,6 +504,7 @@ def clamp_score(value: Any):
 
 
 def is_short_cannot_answer(answer: str):
+    """判断回答是否是短文本形式的“不会/不知道/没经验”。"""
     compact = re.sub(r"\s+", "", answer.strip().lower())
     if len(compact) > 20:
         return False
@@ -491,6 +514,7 @@ def is_short_cannot_answer(answer: str):
 
 
 def is_invalid_answer(answer: str):
+    """判断回答是否为纯数字、重复字符、纯符号等无效内容。"""
     compact = re.sub(r"\s+", "", answer.strip().lower())
     if not compact:
         return True
@@ -508,11 +532,13 @@ def is_invalid_answer(answer: str):
 
 
 def count_technical_keywords(answer: str):
+    """统计回答中命中的技术关键词数量。"""
     lower_answer = answer.lower()
     return sum(1 for keyword in TECHNICAL_KEYWORDS if keyword in lower_answer)
 
 
 def calculate_scores(interview_id):
+    """计算刷题模式下历史评分记录的平均分。"""
     history = get_interview_context(interview_id)
     if not history:
         raise HTTPException(status_code=404, detail="没有找到已评分的回答记录")
@@ -530,6 +556,7 @@ def calculate_scores(interview_id):
 
 
 def generate_report(interview_id: int):
+    """生成刷题模式下的简单汇总报告。"""
     history = get_interview_context(interview_id)
     scores = calculate_scores(interview_id)
     return {

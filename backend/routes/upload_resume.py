@@ -6,6 +6,7 @@ from utils.auth import verify_token
 router=APIRouter()
 @router.post("")
 async def upload_resume(file:UploadFile=File(...),user=Depends(verify_token)):
+    """上传简历接口：解析 PDF、DOCX 或 TXT，并保存简历文本。"""
      # 判断文件类型
     file_name = file.filename or ""
     lower_file_name = file_name.lower()

@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 @router.post("/start", response_model=StartInterviewResponse)
 def start_interview(resume_id: int, user=Depends(verify_token)):
+    """AI 面试开始接口：根据简历创建面试并返回第一道题。"""
     try:
         return start_interview_session(resume_id=resume_id, user_id=user["user_id"])
     except HTTPException:

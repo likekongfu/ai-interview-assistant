@@ -69,13 +69,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.cdynb.top/ai-interview}
+        NEXT_PUBLIC_API_BASE_URL: https://api.cdynb.top/ai-interview
     container_name: ai_interview_frontend
     restart: always
     depends_on:
       - backend
     environment:
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://api.cdynb.top/ai-interview}
+      NEXT_PUBLIC_API_BASE_URL: https://api.cdynb.top/ai-interview
     expose:
       - "3000"
     networks:

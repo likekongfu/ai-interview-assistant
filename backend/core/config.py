@@ -4,10 +4,12 @@ import os
 load_dotenv()
 
 def get_env(name: str, default: str) -> str:
+    """读取字符串环境变量，未配置时使用默认值。"""
     return os.getenv(name, default)
 
 
 def get_int_env(name: str, default: int) -> int:
+    """读取整数环境变量，并在格式错误时抛出明确异常。"""
     value = os.getenv(name)
     if value is None or value == "":
         return default
@@ -49,3 +51,16 @@ EMBEDDING_MODEL = get_env("EMBEDDING_MODEL", "nomic-embed-text")
 TOP_K = get_int_env("TOP_K", 3)
 
 MAX_FOLLOW_UP = min(get_int_env("MAX_FOLLOW_UP", 3), 3)
+
+WECHAT_APPID = get_env("QUIZ_WECHAT_APPID", get_env("WECHAT_APPID", ""))
+WECHAT_SECRET = get_env("QUIZ_WECHAT_SECRET", get_env("WECHAT_SECRET", ""))
+WECHAT_LOGIN_URL = get_env(
+    "WECHAT_LOGIN_URL",
+    "https://api.weixin.qq.com/sns/jscode2session",
+)
+WECHAT_MOCK_LOGIN = os.getenv("WECHAT_MOCK_LOGIN", "false").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}

@@ -11,6 +11,7 @@ router = APIRouter()
 
 @router.post("", summary="生成面试题")
 def generate_interview_questions(req: InterviewRequest, user=Depends(verify_token)):
+    """刷题入口：根据题库/题型/技术方向生成题目列表，并创建练习记录。"""
     if not req.jd.strip():
         raise HTTPException(status_code=400, detail="请输入题库、题型或技术方向")
 

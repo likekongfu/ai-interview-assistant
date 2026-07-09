@@ -9,4 +9,5 @@ router = APIRouter()
 
 @router.post("/follow_up", response_model=FollowUpResponse)
 def follow_up(req: FollowUpRequest, user=Depends(verify_token)):
+    """AI 面试追问接口：保存候选人回答并返回下一题或结束状态。"""
     return handle_follow_up(req, user_id=user["user_id"])

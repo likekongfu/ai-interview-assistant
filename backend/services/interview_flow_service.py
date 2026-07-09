@@ -23,6 +23,7 @@ from services.llm_output_parser import parse_json_response
 
 logger = logging.getLogger(__name__)
 
+# Topic 追问流程中的动作枚举。LLM 和代码兜底逻辑都会围绕这两个动作做判断。
 FOLLOW_UP = "follow_up"
 SWITCH_TOPIC = "switch_topic"
 CANNOT_ANSWER_SCORE = 20
@@ -82,6 +83,15 @@ TECHNICAL_KEYWORDS = (
 
 
 def handle_follow_up(req: FollowUpRequest, user_id: int):
+    """处理用户每次回答后的追问流程。
+
+    主要步骤：
+    1. 校验当前用户是否有权访问该面试和简历。
+    2. 保存用户回答。
+    3. 判断回答是否是“不会”或无效回答。
+    4. 调用 LLM 判断当前 Topic 是否继续追问。
+    5. 根据 LLM 判断和代码兜底规则决定继续追问、切换 Topic 或结束面试。
+    """
     validate_interview_access(req.interview_id, req.resume_id, user_id)
 
     current_topic = get_current_topic(req.interview_id)
@@ -154,6 +164,7 @@ def handle_follow_up(req: FollowUpRequest, user_id: int):
 
 
 def validate_interview_access(interview_id: int, resume_id: int, user_id: int):
+    """校验面试、简历和当前登录用户之间的归属关系。"""
     interview = get_ai_interview_by_id(interview_id)
     if not interview:
         raise HTTPException(status_code=404, detail="面试记录不存在")
@@ -170,6 +181,11 @@ def validate_interview_access(interview_id: int, resume_id: int, user_id: int):
 
 
 def detect_cannot_answer(answer: str) -> tuple[bool, str]:
+    """判断候选人是否主要表达“不会/不知道/没接触过”。
+
+    这里故意不是简单 includes("不会")，因为“不会一直查库”这类回答
+    是正常技术表达，不能误判为候选人不会。
+    """
     compact_answer = re.sub(r"\s+", "", answer.strip().lower())
     if not compact_answer:
         return True, "回答为空"
@@ -188,10 +204,12 @@ def detect_cannot_answer(answer: str) -> tuple[bool, str]:
 
 
 def has_technical_details(compact_answer: str) -> bool:
+    """判断回答中是否出现技术关键词或具体实现线索。"""
     return any(keyword in compact_answer for keyword in TECHNICAL_KEYWORDS)
 
 
 def detect_invalid_answer(answer: str) -> tuple[bool, str]:
+    """识别纯数字、纯符号、重复字符等没有明确语义的无效回答。"""
     compact_answer = re.sub(r"\s+", "", answer.strip().lower())
     if not compact_answer:
         return True, "empty answer"
@@ -215,6 +233,7 @@ def detect_invalid_answer(answer: str) -> tuple[bool, str]:
 
 
 def build_cannot_answer_decision() -> dict:
+    """构造“候选人明确不会”时的固定低分切换决策。"""
     return {
         "action": SWITCH_TOPIC,
         "score": CANNOT_ANSWER_SCORE,
@@ -226,6 +245,7 @@ def build_cannot_answer_decision() -> dict:
 
 
 def build_invalid_answer_decision(reason: str) -> dict:
+    """构造无效回答时的固定低分切换决策。"""
     return {
         "action": SWITCH_TOPIC,
         "score": INVALID_ANSWER_SCORE,
@@ -241,6 +261,11 @@ def normalize_decision_by_answer(
     answer: str,
     cannot_answer: bool,
 ) -> dict:
+    """修正 LLM 对“不会”类表达的误判。
+
+    如果回答里包含技术细节，但 LLM 仍判断为“明确不会”，这里会把决策
+    拉回继续追问，避免误杀正常答案。
+    """
     if cannot_answer:
         return decision
 
@@ -273,6 +298,7 @@ def normalize_decision_by_answer(
 
 
 def continue_follow_up(req: FollowUpRequest, current_topic, history: list, decision: dict):
+    """继续当前 Topic 的追问，并保存 AI 的下一道问题。"""
     next_question = decision.get("next_question") or generate_follow_up_question(
         topic=current_topic.topic,
         answer=req.answer,
@@ -306,6 +332,10 @@ def switch_to_next_topic(
     decision: dict,
     switch_reason: str,
 ):
+    """结束当前 Topic，并切换到下一个 Topic。
+
+    如果已经没有下一个 Topic，则标记整场 AI 面试结束。
+    """
     finish_topic(current_topic.id)
     next_topic = get_next_topic(req.interview_id, current_topic.topic_order)
     if not next_topic:
@@ -353,6 +383,7 @@ def judge_topic_action(
     history: str,
     follow_up_count: int,
 ) -> dict:
+    """调用 LLM 判断当前回答是否需要继续追问或切换 Topic。"""
     try:
         raw_result = judge_chain.invoke(
             {
@@ -389,6 +420,7 @@ def judge_topic_action(
 
 
 def normalize_decision(parsed: Any, answer: str = "") -> dict:
+    """规范化 LLM 返回的决策 JSON，保证 action/score 等字段可用。"""
     if not isinstance(parsed, dict):
         raise ValueError("LLM decision must be a JSON object")
 
@@ -413,6 +445,7 @@ def normalize_decision(parsed: Any, answer: str = "") -> dict:
 
 
 def estimate_answer_score(answer: str) -> int:
+    """在 LLM 输出解析失败时，根据回答长度和技术关键词估算保守分数。"""
     invalid_answer, _ = detect_invalid_answer(answer)
     if invalid_answer:
         return 20
@@ -437,6 +470,7 @@ def estimate_answer_score(answer: str) -> int:
 
 
 def should_switch_topic(decision: dict, follow_up_count: int, cannot_answer: bool, invalid_answer: bool = False):
+    """根据 LLM 决策、分数、追问次数和兜底规则判断是否切换 Topic。"""
     score = decision.get("score")
 
     if invalid_answer:
@@ -472,6 +506,7 @@ def log_topic_decision(
     should_switch: bool,
     switch_reason: str,
 ):
+    """记录 Topic 判断过程，便于排查线上追问和切换行为。"""
     logger.info(
         (
             "topic_decision topic=%s candidate_answer=%s follow_up_count=%s "
@@ -494,6 +529,7 @@ def log_topic_decision(
 
 
 def build_history_text(history: list):
+    """把当前 Topic 的历史消息拼成 Prompt 可读的对话文本。"""
     return "\n".join(
         [
             f"{'面试官' if message.role == 'ai' else '候选人'}：{message.content}"
@@ -503,6 +539,7 @@ def build_history_text(history: list):
 
 
 def generate_follow_up_question(topic: str, answer: str, history: list):
+    """调用追问链，为当前 Topic 生成下一道追问问题。"""
     history_text = build_history_text(history)
     return followup_chain.invoke(
         {
@@ -514,6 +551,7 @@ def generate_follow_up_question(topic: str, answer: str, history: list):
 
 
 def generate_topic_question(resume_text: str, topic: str):
+    """切换 Topic 后，基于简历和新 Topic 生成第一道问题。"""
     return first_question_chain.invoke(
         {
             "resume": resume_text,
