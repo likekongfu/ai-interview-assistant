@@ -187,3 +187,65 @@ class InterviewReport(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
+
+class QuizQuestion(Base):
+    """刷题小程序题库表，只保存可自动判分的选择题。"""
+    __tablename__ = "quiz_questions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source_id = Column(String(64), unique=True, nullable=True)
+    category = Column(String(64), nullable=False, index=True)
+    stem = Column(Text, nullable=False)
+    options_json = Column(Text, nullable=False)
+    correct_answer = Column(String(8), nullable=False)
+    explanation = Column(Text, nullable=False)
+    knowledge_point = Column(String(255), nullable=True)
+    difficulty = Column(String(20), nullable=False, default="medium")
+    status = Column(String(20), nullable=False, default="active")
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class PracticeSession(Base):
+    """一次固定题序的刷题练习。"""
+    __tablename__ = "practice_sessions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    category = Column(String(64), nullable=False)
+    status = Column(String(20), nullable=False, default="in_progress")
+    total_questions = Column(Integer, nullable=False, default=0)
+    score = Column(Integer, nullable=False, default=0)
+    current_index = Column(Integer, nullable=False, default=0)
+    started_at = Column(DateTime, server_default=func.now())
+    completed_at = Column(DateTime, nullable=True)
+
+
+class PracticeSessionQuestion(Base):
+    """练习内题目顺序表，保证同一轮顺序固定。"""
+    __tablename__ = "practice_session_questions"
+    __table_args__ = (
+        UniqueConstraint("session_id", "question_id", name="uq_practice_session_question"),
+        UniqueConstraint("session_id", "question_order", name="uq_practice_session_order"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("practice_sessions.id"), nullable=False, index=True)
+    question_id = Column(Integer, ForeignKey("quiz_questions.id"), nullable=False)
+    question_order = Column(Integer, nullable=False)
+
+
+class PracticeAnswer(Base):
+    """用户在某轮练习中的答题记录，重复提交不重复加分。"""
+    __tablename__ = "practice_answers"
+    __table_args__ = (
+        UniqueConstraint("session_id", "question_id", name="uq_practice_answer_question"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(Integer, ForeignKey("practice_sessions.id"), nullable=False, index=True)
+    question_id = Column(Integer, ForeignKey("quiz_questions.id"), nullable=False)
+    user_answer = Column(String(8), nullable=False)
+    is_correct = Column(Boolean, nullable=False, default=False)
+    score = Column(Integer, nullable=False, default=0)
+    answered_at = Column(DateTime, server_default=func.now())
+

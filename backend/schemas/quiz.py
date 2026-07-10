@@ -39,3 +39,73 @@ class QuizGenerateResponse(BaseModel):
 
     questions: list[QuizQuestion]
 
+
+class QuizDashboardResponse(BaseModel):
+    answered_count: int = 0
+    correct_count: int = 0
+    accuracy: int = 0
+    streak_days: int = 0
+    total_score: int = 0
+    recent_practices: list[dict] = Field(default_factory=list)
+
+
+class QuizCategoryResponse(BaseModel):
+    name: str
+    key: str
+    total_count: int
+    completed_count: int
+    progress: int
+
+
+class PracticeSessionCreateRequest(BaseModel):
+    category: str = Field(min_length=1, max_length=64)
+    count: int = Field(default=10, ge=1, le=50)
+
+
+class PracticeQuestionResponse(BaseModel):
+    id: int
+    category: str
+    stem: str
+    options: list[QuizOption]
+    difficulty: str
+    order: int
+    total: int
+
+
+class PracticeSessionCreateResponse(BaseModel):
+    session_id: int
+    total_questions: int
+    question: PracticeQuestionResponse
+
+
+class PracticeAnswerRequest(BaseModel):
+    question_id: int
+    answer: Literal["A", "B", "C", "D"]
+
+
+class PracticeAnswerResponse(BaseModel):
+    question_id: int
+    is_correct: bool
+    correct_answer: Literal["A", "B", "C", "D"]
+    explanation: str
+    tags: list[str]
+    score_added: int
+    already_answered: bool = False
+
+
+class PracticeNextResponse(BaseModel):
+    session_id: int
+    completed: bool
+    question: PracticeQuestionResponse | None = None
+
+
+class PracticeResultResponse(BaseModel):
+    session_id: int
+    total_questions: int
+    answered_count: int
+    correct_count: int
+    wrong_count: int
+    accuracy: int
+    score: int
+    details: list[dict]
+
